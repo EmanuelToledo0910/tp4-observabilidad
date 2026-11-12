@@ -1,0 +1,64 @@
+# values-alloy.yaml
+# Configuración de Grafana Alloy para recolectar logs y enviarlos a Loki
+
+alloy:
+  configMap:
+    content: |
+      // Descubrir pods del clúster
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Relabeling: agregar labels namespace, pod, container, app
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app"
+        }
+      }
+
+      // Leer los logs de los pods descubiertos
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.pipeline.receiver]
+      }
+
+      // Pipeline de procesamiento: extraer level del JSON para la API
+      loki.process "pipeline" {
+        // Etapa 1: parsear JSON y extraer el campo level
+        stage.json {
+          expressions = {
+            level = "level",
+          }
+        }
+
+        // Etapa 2: agregar level como label de Loki
+        stage.labels {
+          values = {
+            level = "",
+          }
+        }
+
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      // Enviar logs a Loki
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki.observabilidad.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

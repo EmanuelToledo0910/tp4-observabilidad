@@ -1,0 +1,4 @@
+*.docx
+generate_report.py
+__pycache__/
+patch_port.json

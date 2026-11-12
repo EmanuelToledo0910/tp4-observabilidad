@@ -1,0 +1,38 @@
+# values-kube-prometheus-stack.yaml
+# Instalación de kube-prometheus-stack para el TP4 de AARyS
+
+# Deshabilitar Alertmanager (no se usa en esta práctica)
+alertmanager:
+  enabled: false
+
+# Grafana: aumentar límite de memoria y agregar Loki como datasource
+grafana:
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 256Mi
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.observabilidad.svc.cluster.local:3100
+      jsonData:
+        maxLines: 1000
+
+# Prometheus: seleccionar ServiceMonitors de todos los namespaces
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+
+# Deshabilitar scraping del control plane que falla en minikube
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false
